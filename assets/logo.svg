@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2600" height="760" viewBox="0 0 2600 760">
+  <g transform="translate(70 100) scale(0.2734)">
+    <defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#262A31"/>
+        <stop offset="1" stop-color="#0C0D10"/>
+      </linearGradient>
+      <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0" stop-color="#E8452C" stop-opacity="0.42"/>
+        <stop offset="1" stop-color="#E8452C" stop-opacity="0"/>
+      </radialGradient>
+      <clipPath id="squircle">
+        <rect x="92" y="92" width="1864" height="1864" rx="410"/>
+      </clipPath>
+    </defs>
+    <g clip-path="url(#squircle)">
+      <rect x="92" y="92" width="1864" height="1864" rx="410" fill="url(#bg)"/>
+      <ellipse cx="1024" cy="1000" rx="300" ry="380" fill="url(#glow)"/>
+      <g fill="none" stroke="#FF8A4C" stroke-width="28" stroke-linecap="round" opacity="0.78">
+      <path d="M 1453 560 A 560 560 0 0 1 1453 1280"/>
+      <path d="M 595 1280 A 560 560 0 0 1 595 560"/>
+    </g>
+      <rect x="900" y="560" width="248" height="580" rx="124" fill="#F7F7FA"/>
+      <path d="M848 848v92a176 176 0 0 0 352 0v-92" fill="none" stroke="#F7F7FA" stroke-width="56" stroke-linecap="round"/>
+      <rect x="1002" y="1330" width="44" height="132" rx="22" fill="#F7F7FA"/>
+      <rect x="880" y="1458" width="288" height="54" rx="27" fill="#F7F7FA"/>
+    </g>
+  </g>
+  <text x="760" y="500" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-weight="700" font-size="300" fill="#15161A">Rust<tspan fill="#FF6B3D">ype</tspan></text>
+</svg>
