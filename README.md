@@ -1,52 +1,49 @@
 <p align="center"><img src="assets/logo.png" width="560" alt="Rustype"></p>
 
-# rustype
+**English** | [简体中文](README.zh-CN.md)
 
-一个用 Rust 复刻的 macOS AI 语音输入工具。点一下右 `Option`（⌥）开始说话，再点一下结束，随后自动转写、润色并写回当前输入框——行为对照 Typeless 2.8.2 逆向分析结果实现。
+# Rustype
 
-> 逆向报告见 [docs/REVERSE_ENGINEERING.md](docs/REVERSE_ENGINEERING.md)；
-> 完整的思考与取舍过程见 [docs/THINKING_PROCESS.md](docs/THINKING_PROCESS.md)。
+A Rust reimplementation of a Typeless-style AI dictation app for macOS. Tap the right `Option` (⌥) key to start talking, tap again to stop — Rustype transcribes the audio, cleans it up, and writes the result into the focused input field.
 
-## 它做了什么
+The behavior is modeled on a reverse-engineering analysis of Typeless 2.8.2. The analysis documents are written in Chinese:
+
+- [Reverse-engineering report](docs/REVERSE_ENGINEERING.md)
+- [Decision log / thinking process](docs/THINKING_PROCESS.md)
+
+## How it works
 
 ```
- ┌────────────┐   ● 按住右 Option / 双击免提  ┌──────────────────┐
- │ CGEventTap │ ───────────────────────────▶ │ Session 状态机    │
- │ (⌥/组合键)  │                              │ 录音/模式/取消    │
- └────────────┘                              └───────┬──────────┘
-                                                     │ 16 kHz mono
-                                             ┌───────▼──────────┐
-                                             │ cpal 麦克风采集   │
-                                             └───────┬──────────┘
-                                     静音裁剪 + 重采样 + WAV
-                                             ┌───────▼──────────┐
-                                             │ ASR（OpenAI 兼容）│
-                                             └───────┬──────────┘
-                                  词典 + 应用/窗口/选区上下文
-                                             ┌───────▼──────────┐
-                                             │ LLM 润色/改写/翻译 │
-                                             └───────┬──────────┘
-                                       剪贴板 + Cmd+V（或合成键入）
-                                             ┌───────▼──────────┐
-                                             │ 前台输入框         │
-                                             └──────────────────┘
+CGEventTap (⌥ / chords)
+        │  tap right Option to start / stop
+        ▼
+Session state machine ── 16 kHz mono ──▶ cpal microphone capture
+        │  trim silence + resample + WAV
+        ▼
+ASR (OpenAI-compatible /audio/transcriptions)
+        │  dictionary + frontmost app / window / selected text
+        ▼
+LLM cleanup · rewrite · translate
+        │  clipboard + Cmd+V (or synthesized Unicode typing)
+        ▼
+Focused input field
 ```
 
-## 功能
+## Features
 
-- **点击切换**（默认）：点一下右 `Option` 开始录音，再点一下结束并进入 Thinking；`Esc` 取消。
-- **防幻觉**：静音/音量过低不送 ASR；转写文本长度与录音时长不匹配（如 4 秒静音出现 850 字）会被判为幻觉并丢弃；润色结果异常膨胀时回退到原始转写。
-- **按住说话**：在设置面板把「触发方式」改成 hold，即按下开始、松开结束（保留双击免提）。
-- **三种模式**：
-  - 听写（右 `Option`）：去口水词、自我纠正、自动标点/分段/列表。
-  - 提问 / 命令（右 `Option`+`Space`）：有选中文本时按指令改写，没有选中文本时直接回答口述问题。
-  - 翻译（右 `Option`+`Shift`）：翻译到配置的目标语言。
-- **上下文感知**：注入前台应用名、窗口标题、选中文本、个人词典。
-- **写回**：默认「剪贴板 + `Cmd+V`」并恢复原剪贴板；可切换为 Unicode 合成键入。
-- **本地历史**：`history.jsonl`，`Ctrl+Cmd+V` 粘贴上一条。
-- **可配置**：TOML 配置、任意 OpenAI 兼容端点（OpenAI、Azure 网关、本地 Whisper、Ollama/vLLM 等）。
+- **Tap-to-toggle** (default): tap the right `Option` key to start recording, tap again to stop and enter the *Thinking* state; `Esc` cancels.
+- **Anti-hallucination guards**: silent or too-quiet audio is never sent to ASR; a transcript whose length is implausible for the recording duration (e.g. 850 characters from 4 seconds of silence) is discarded; when LLM cleanup inflates the text abnormally, Rustype falls back to the raw transcript.
+- **Hold-to-talk**: switch *Trigger mode* to `hold` in the settings panel to talk while the key is down (double-tap hands-free is still supported).
+- **Three modes**:
+  - **Dictation** (right `Option`): removes filler words, resolves self-corrections, adds punctuation, paragraphs and lists.
+  - **Ask / command** (right `Option` + `Space`): rewrites the selected text when there is a selection, otherwise answers the spoken question.
+  - **Translation** (right `Option` + `Shift`): translates into the configured target language.
+- **Context aware**: injects the frontmost app name, window title, selected text and a personal dictionary into the prompt.
+- **Insertion**: clipboard + `Cmd+V` with clipboard restoration by default; optional Unicode synthesized typing.
+- **Local history**: `history.jsonl`; `Ctrl+Cmd+V` pastes the previous result.
+- **Configurable**: TOML config and any OpenAI-compatible endpoint (OpenAI, Azure gateways, local Whisper, Ollama/vLLM, and so on).
 
-## 图标与 Logo
+## Icon and logo
 
 <p>
   <img src="assets/icon-1024.png" width="140" alt="Rustype icon">
@@ -54,188 +51,184 @@
   <img src="assets/mark-1024.png" width="140" alt="Rustype mark">
 </p>
 
-| 文件 | 用途 |
+| File | Purpose |
 | --- | --- |
-| `assets/icon.svg` / `icon-1024.png` / `icon.icns` | 应用图标（菜单元数据 / Finder） |
-| `assets/mark-1024.png` | 独立标记（麦克风 + 声波） |
-| `assets/logo.svg` / `logo.png` | 浅色背景横向字标 |
-| `assets/logo-dark.png` | 深色背景横向字标 |
+| `assets/icon.svg` / `icon-1024.png` / `icon.icns` | App icon (Finder / menu metadata) |
+| `assets/mark-1024.png` | Standalone mark (microphone + telegraph arcs) |
+| `assets/logo.svg` / `logo.png` | Horizontal wordmark for light backgrounds |
+| `assets/logo-dark.png` | Horizontal wordmark for dark backgrounds |
 
-设计：深色圆角方形 + 白色麦克风 + 两侧各一道锈橙色电报弧线（电台信号/有信息），整体克制；字标 "Rust" 用墨色、"ype" 用锈橙色。重新生成：
-
-```bash
-python3 scripts/make-icons.py   # 需要 Pillow；自动生成 icns
-```
-
-## 安装包（DMG）
+Design: a dark squircle with a white microphone and one thin rust-orange telegraph arc on each side (signal / incoming message), kept deliberately restrained; the wordmark sets "Rust" in ink and "ype" in rust orange. Regenerate everything with:
 
 ```bash
-scripts/make-dmg.sh          # 重新打包 app + 生成安装镜像
-open dist/Rustype-0.1.0.dmg  # 挂载后把 Rustype.app 拖进 Applications
+python3 scripts/make-icons.py   # requires Pillow; also builds icon.icns
 ```
 
-- arm64：`scripts/make-dmg.sh` → `dist/Rustype-0.1.0.dmg`
-- Universal（arm64 + x86_64）：`scripts/make-universal.sh` → `dist/Rustype-0.1.0-universal.dmg`
+## Install
 
-镜像内含 `Rustype.app`、`Applications` 快捷方式和一份安装说明。首次打开如被 Gatekeeper 拦截，右键 → 打开；随后在「系统设置 → 隐私与安全性 → 辅助功能」勾选 Rustype。
-
-> 当前为 ad-hoc 签名（未公证），分发给其他 Mac 时需要右键打开，或自行用 Developer ID 签名并公证。
-
-## Intel / Universal 构建
+### DMG
 
 ```bash
-rustup target add x86_64-apple-darwin --toolchain stable
-scripts/make-universal.sh 0.1.0-universal
+scripts/make-dmg.sh          # rebuild the app and create the disk image
+open dist/Rustype-0.1.0.dmg  # drag Rustype.app into Applications
 ```
 
-脚本会分别编译 `aarch64-apple-darwin` 与 `x86_64-apple-darwin`，用 `lipo` 合成 Universal 二进制，再打包成 DMG。Intel Mac 直接运行 x86_64 slice；Apple Silicon 运行原生 arm64 slice。
+- arm64 only: `scripts/make-dmg.sh` → `dist/Rustype-0.1.0.dmg`
+- Universal (arm64 + x86_64): `scripts/make-universal.sh` → `dist/Rustype-0.1.0-universal.dmg`
 
-## 快速开始
+The image contains `Rustype.app`, an `Applications` shortcut and a short install note. If Gatekeeper blocks the first launch, right-click → **Open**; then enable Rustype under **System Settings → Privacy & Security → Accessibility**.
 
-### 1. 构建
+> The app is ad-hoc signed and not notarized. For distribution to other Macs, sign with a Developer ID certificate and notarize — see [docs/SIGNING.md](docs/SIGNING.md).
+
+### Build from source
 
 ```bash
 cargo build --release
-# 产物：target/release/rustype
+# binary: target/release/rustype
 ```
 
-### 2. 授权
+## Permissions
 
-系统设置 → 隐私与安全性 → **辅助功能**，加入 `rustype` 可执行文件（`Cmd+Shift+G` 可直接输入路径）。
-权限用于：全局监听快捷键、向其他 App 合成 `Cmd+V`、读取 AX 选中文本。
+Open **System Settings → Privacy & Security → Accessibility** and add the `rustype` executable (`Cmd+Shift+G` lets you paste the path directly).
 
-> 从终端运行时，macOS 把辅助功能权限记在终端（Terminal/iTerm）名下；用 LaunchAgent 常驻时，需要给 `rustype` 二进制本身授权。`rustype doctor` 会给出提示。
+The permission is used to:
 
-### 3. 配置
+- listen for global hotkeys,
+- synthesize `Cmd+V` into other apps,
+- read the selected text through the Accessibility API.
+
+> When launched from a terminal, macOS attributes the Accessibility grant to the terminal (Terminal/iTerm). For a LaunchAgent daemon, grant it to the `rustype` binary itself. `rustype doctor` prints a reminder.
+
+## Configuration
 
 ```bash
 ./target/release/rustype config --init    # ~/Library/Application Support/Rustype/config.toml
-export RUSTYPE_API_KEY=sk-...             # 或写进 config.toml 的 provider.api_key
+export RUSTYPE_API_KEY=sk-...             # or set provider.api_key in the config
 ./target/release/rustype doctor
 ```
 
-> 配置默认位于 `~/Library/Application Support/Rustype/`；设置 `RUSTYPE_HOME` 可改成任意目录（本仓库开发时用 `.rustype-home/`）。
+> The default config lives in `~/Library/Application Support/Rustype/`. Set `RUSTYPE_HOME` to use another directory (the development setup in this repo uses `.rustype-home/`).
 
-### 4. 运行
+## Running
 
 ```bash
-scripts/make-app.sh                   # 生成 dist/Rustype.app
-./dist/Rustype.app/Contents/MacOS/rustype run   # 推荐：稳定的应用身份，菜单栏图标不会丢
-./target/release/rustype run --no-tray          # 无图标（ssh/launchd 纯后台）
+scripts/make-app.sh                             # build dist/Rustype.app
+./dist/Rustype.app/Contents/MacOS/rustype run   # recommended: stable app identity
+./target/release/rustype run --no-tray          # headless (ssh / launchd)
 ```
 
-> macOS 会按“应用身份”记住菜单栏项的位置/隐藏状态。直接运行 `target/release/rustype` 时身份是裸二进制路径，测试中被系统隐藏后重启也不恢复；`.app` 包使用 `com.rustype.desktop`，图标稳定，辅助功能授权也会显示为 Rustype。
+> macOS remembers the menu-bar position and visibility per *app identity*. Running the bare binary at `target/release/rustype` can leave the item hidden after a restart; the `.app` bundle uses `com.rustype.desktop`, which keeps the icon stable and makes the Accessibility entry show up as Rustype.
 
-启动后菜单栏会出现一个麦克风图标：
+A microphone icon appears in the menu bar:
 
-- **点击图标**打开菜单：开始/停止听写、粘贴上一条、设置…、打开配置文件、退出；
-- **按住右 `Option`** 说话，松开即转写并写回（图标旁显示 `●` 表示录音中，`…` 表示转写中）；
-- 三条路径（图标菜单 / 快捷键 / 命令行）共用同一个会话。
+- **Click the icon** to open the menu: start/stop dictation, paste previous, settings…, open config file, quit.
+- **Hold the right `Option` key** to talk; release to transcribe and insert (`●` next to the icon means recording, `…` means processing).
+- The icon menu, the hotkey and the CLI all share the same session.
 
-| 空闲 | 录音中 |
+| Idle | Recording |
 | --- | --- |
-| ![空闲](docs/menubar-idle.png) | ![录音中](docs/menubar-recording.png) |
+| ![idle](docs/menubar-idle.png) | ![recording](docs/menubar-recording.png) |
 
-录音时屏幕底部中央会出现悬浮条：左边 ✕ 取消，中间是实时波形，右边 ✓ 结束并转写（点中间区域无操作）：
+While recording, a pill appears at the bottom center of the screen: ✕ cancels on the left, the live waveform sits in the middle, and ✓ stops and transcribes on the right.
 
-![录音悬浮条](docs/recording-pill.png)
+![recording pill](docs/recording-pill.png)
 
-点 ✓ 之后悬浮条切换为处理态，显示带扫光动画的 **Thinking**，转写和润色完成（或失败）后自动消失：
+After pressing ✓ the pill switches to the processing state with a sweeping **Thinking** animation and disappears when transcription and cleanup finish (or fail):
 
 ![Thinking](docs/thinking-pill.png)
 
-进入翻译模式（右 `Option` + `Shift`）时，录音胶囊上方会出现语言选择条，支持 16 种常用语言：
+### Translation bar
 
-![翻译语言选择](docs/translation-bar.png)
+In translation mode (right `Option` + `Shift`) a language bar appears above the pill, with 16 common languages:
 
-- 下拉选择目标语言后立即生效，并写回配置供后续翻译使用；
-- 选择条只在翻译模式录音时出现，听写/命令模式不打扰。
+![translation bar](docs/translation-bar.png)
 
-### 询问任何问题
+- Picking a target language takes effect immediately and is written back to the config for the next translation.
+- The bar only appears while recording in translation mode; dictation and command modes stay unobtrusive.
 
-命令模式（右 `Option` + `Space`）录音时，胶囊上方会出现提示条：
+### Ask anything
 
-![询问任何问题](docs/ask-bar.png)
+In command mode (right `Option` + `Space`) a hint bar is shown above the pill while recording:
 
-停止后默认弹出答案卡片，只有“有选区 + 明确改写指令”才替换选区。
+![ask bar](docs/ask-bar.png)
 
-### 提问答案卡片
+After stopping, the answer panel opens by default; only an explicit rewrite instruction with a selection replaces the selection.
 
-命令模式下默认弹出 Typeless 风格的答案面板，而不是替换选区：
+### Answer card
 
-![答案卡片](docs/answer-card.png)
+Command mode opens a Typeless-style answer panel instead of replacing the selection:
 
-- 顶部：`Rustype` 标题 + 关闭按钮；
-- 问题区：麦克风图标 + 你刚才说的话 + 复制按钮；
-- 回答区：`回答` 标题 + 复制按钮 + 可滚动、可选择的答案正文；
-- 面板颜色跟随系统外观（浅色/深色）；
-- 只有**有选区且明确是改写指令**（改写/润色/翻译/缩短…）才会直接替换选区；
-- `rustype answer "文本"` 可以单独预览这张卡片。
+![answer card](docs/answer-card.png)
 
-右键菜单：
+- Header: `Rustype` title + close button.
+- Question: microphone icon + what you just said + copy button.
+- Answer: `回答` header + copy button + scrollable, selectable answer text.
+- The panel follows the system appearance (light/dark).
+- Only **a selection plus an explicit rewrite instruction** (rewrite / polish / translate / shorten…) replaces the selection.
+- `rustype answer "text"` previews the card.
 
-![菜单](docs/menubar-menu.png)
+Context menu:
 
-### 设置面板
+![menu](docs/menubar-menu.png)
 
-菜单栏图标 →「设置…」打开原生配置面板，改完点保存立即热重载（模型、代理、快捷键、麦克风、写回方式等），不需要重启：
+### Settings panel
 
-![设置面板](docs/settings-panel.png)
+Menu-bar icon → **Settings…** opens a native settings panel. Saving hot-reloads the running daemon (models, proxy, hotkeys, microphone, insertion method) without a restart:
 
-- API Key 使用密码框显示；
-- 麦克风、写回方式是下拉选择；
-- 保存前会校验快捷键格式，非法配置会弹窗且不落盘；
-- 仍保留「打开配置文件」用于编辑提示词等高级项；
-- 从托盘菜单打开时保存会立即热重载；用 `rustype settings` 单独打开时只写文件，重启常驻进程后生效。
+![settings panel](docs/settings-panel.png)
 
-终端会打印就绪信息；按住右 `Option` 对着麦克风说话，松开即可看到文字出现在当前输入框。
+- API keys are shown in a secure field.
+- Microphone and insertion method are pop-up menus.
+- Hotkey syntax is validated before saving; invalid values show an alert and are not written.
+- **Open config file** remains available for advanced options such as prompts.
+- Saving from the tray hot-reloads immediately; `rustype settings` only writes the file (restart the daemon to apply).
 
-### 5. 开机自启（可选）
+### Launch at login (optional)
 
 ```bash
-scripts/install-launchagent.sh          # 安装并启动 LaunchAgent
-scripts/install-launchagent.sh --remove # 卸载
+scripts/install-launchagent.sh          # install and start the LaunchAgent
+scripts/install-launchagent.sh --remove # uninstall
 ```
 
-## 快捷键
+## Hotkeys
 
-| 操作 | 默认键 | 说明 |
+| Action | Default | Notes |
 | --- | --- | --- |
-| 听写 | 点右 `Option`（⌥） | 再点一次结束并转写，默认 toggle 模式 |
-| 按住说话 | 设置 → 触发方式 → hold | 按下开始、松开结束 |
-| 提问 / 改写选中文本 | 右 `Option` + `Space` | 有选中文本则改写，无选中则直接回答 |
-| 翻译 | 右 `Option` + `Shift` | 目标语言见 `translation_target` |
-| 粘贴上一条 | `Ctrl+Alt+V` | 从本地历史读取 |
-| 取消录音 | `Esc` | 丢弃本次录音 |
+| Dictation | tap right `Option` (⌥) | tap again to stop and transcribe; toggle mode by default |
+| Hold-to-talk | Settings → Trigger mode → hold | start on key down, stop on key up |
+| Ask / rewrite selection | right `Option` + `Space` | rewrites a selection, or answers when there is none |
+| Translate | right `Option` + `Shift` | target language from `translation_target` |
+| Paste previous | `Ctrl+Alt+V` | reads from local history |
+| Cancel recording | `Esc` | discards the current recording |
 
-默认用右 `Option` 是为了不和 Typeless 的 `Fn` 抢占（两者都基于 HID 级监听）。若想沿用 `Fn`，先退出 Typeless，再把 `[hotkeys]` 改回 `fn`。
+The right `Option` default avoids fighting Typeless for `Fn` (both use HID-level taps). To use `Fn` instead, quit Typeless first and change `[hotkeys]` back to `fn`.
 
-所有快捷键都可在 `[hotkeys]` 中修改，例如 `fn+space`、`ctrl+alt+d`；属于组合键的字符键会被事件监听器吞掉，不会漏字。
+All shortcuts are configurable in `[hotkeys]`, e.g. `fn+space` or `ctrl+alt+d`; chord character keys are swallowed by the event tap so they never leak into the focused app.
 
-## 配置参考
+## Configuration reference
 
 ```toml
 [provider]
-base_url = "https://api.openai.com/v1"   # 任意 OpenAI 兼容端点
-api_key = ""                             # 建议用环境变量 RUSTYPE_API_KEY
-asr_model = "whisper-1"                  # 或 gpt-4o-transcribe / 本地模型名
+base_url = "https://api.openai.com/v1"   # any OpenAI-compatible endpoint
+api_key = ""                             # prefer the RUSTYPE_API_KEY env var
+asr_model = "whisper-1"                  # or gpt-4o-transcribe / a local model name
 llm_model = "gpt-4o-mini"
-language = ""                            # 如 "zh"、"en"；空 = 自动
+language = ""                            # e.g. "zh", "en"; empty = auto-detect
 timeout_secs = 60
-proxy = ""                               # 如 "http://127.0.0.1:7890"；空则读 HTTPS_PROXY
+proxy = ""                               # e.g. "http://127.0.0.1:7890"; empty reads HTTPS_PROXY
 
 [llm]
-enabled = true                           # false = 只用 ASR 原文
+enabled = true                           # false = use the raw ASR transcript only
 temperature = 0.2
 
 [audio]
 sample_rate = 16000
-min_duration_ms = 300                    # 太短的录音直接丢弃
-max_duration_ms = 300000                 # 5 分钟自动停止
-input_device = ""                        # 名称子串；空 = 系统默认
-silence_rms = 0.004                      # 首尾静音裁剪阈值
+min_duration_ms = 300                    # drop recordings that are too short
+max_duration_ms = 300000                 # auto-stop after 5 minutes
+input_device = ""                        # name substring; empty = system default
+silence_rms = 0.004                      # leading/trailing silence trim threshold
 play_sounds = true
-keep_mic_warm = true                     # 常驻音频流，消除设备启动延迟（麦克风指示灯常亮）
+keep_mic_warm = true                     # keep the stream open to remove startup delay (mic indicator stays on)
 
 [insert]
 method = "paste"                         # paste | type
@@ -243,80 +236,76 @@ restore_clipboard = true
 restore_delay_ms = 250
 
 [hotkeys]
-mode = "toggle"                         # toggle（点击切换）或 hold（按住说话）
+mode = "toggle"                          # toggle (tap) or hold (push-to-talk)
 dictation = "right-alt"
 command = "right-alt+space"
 translation = "right-alt+shift"
 paste_last = "ctrl+alt+v"
 
-dictionary = ["Kubernetes", "Rustype"]   # 个人词典（注入提示词）
+dictionary = ["Kubernetes", "Rustype"]   # personal dictionary injected into the prompt
 translation_target = "English"
 history_enabled = true
 ```
 
-`[prompts]` 中的三个提示词可整体替换，用于定制语气或接入不同模型。
+The three prompts under `[prompts]` can be replaced entirely to change the tone or to target a different model.
 
-## 命令
+## Commands
 
-| 命令 | 作用 |
+| Command | Purpose |
 | --- | --- |
-| `rustype run` | 常驻监听（默认命令） |
-| `rustype transcribe <file.wav>` | 离线转写一个 WAV（16-bit PCM / float32）并打印 |
-| `rustype devices` | 列出输入设备 |
-| `rustype doctor` | 检查权限、配置、API Key、设备 |
-| `rustype config [--init]` | 打印/生成配置 |
-| `rustype insert "text"` | 测试写回路径 |
-| `rustype settings` | 单独打开设置面板（应用未运行时的配置方式） |
-| `rustype answer "text"` | 预览答案卡片 |
-| `rustype askbar` | 预览“询问任何问题”提示条 |
+| `rustype run` | persistent hotkey listener (default command) |
+| `rustype transcribe <file.wav>` | transcribe a WAV offline (16-bit PCM / float32) and print it |
+| `rustype devices` | list input devices |
+| `rustype doctor` | check permissions, config, API key and devices |
+| `rustype config [--init]` | print / create the config |
+| `rustype insert "text"` | exercise the insertion path |
+| `rustype settings` | open the settings panel standalone |
+| `rustype answer "text"` | preview the answer card |
+| `rustype askbar` | preview the "ask anything" hint bar |
 
-## 测试
-
-```bash
-cargo test            # 核心库单元测试（配置/状态机/音频/提示词/客户端解析）
-cargo build           # macOS 完整构建
-```
-
-端到端验证（本地 mock provider，不需要真实 API Key）：
+## Tests
 
 ```bash
-python3 re/mock_provider.py &
-RUSTYPE_HOME=$PWD/.rustype-home RUSTYPE_API_KEY=test \
-  RUSTYPE_BASE_URL=http://127.0.0.1:8765/v1 \
-  cargo run -- transcribe test-tone.wav
+cargo test     # core unit tests: config, state machine, audio, prompts, client parsing
+cargo build    # full macOS build
 ```
 
-## 目录结构
+An end-to-end mock-provider test is available in the original development workspace (it uses the local `re/` reverse-engineering scripts, which are not part of this repository).
+
+## Project layout
 
 ```
-apps/rustype/             macOS 可执行文件
-  src/macos/tap.rs        CGEventTap：Fn、组合键、按键吞噬
-  src/macos/audio.rs      cpal 采集
-  src/macos/context.rs    NSWorkspace + AX 上下文
-  src/macos/insert.rs     剪贴板/Cmd+V/Unicode 键入
-  src/session.rs          录音-转写-润色-写回编排
-crates/rustype-core/      平台无关核心
+apps/rustype/             macOS executable
+  src/macos/tap.rs        CGEventTap: Fn, chords, key swallowing
+  src/macos/audio.rs      cpal capture
+  src/macos/context.rs    NSWorkspace + Accessibility context
+  src/macos/insert.rs     clipboard / Cmd+V / Unicode typing
+  src/session.rs          record → transcribe → clean up → insert
+crates/rustype-core/      platform-independent core
   config / hotkey / state / prompt / audio / asr / llm / history
-docs/REVERSE_ENGINEERING.md
-docs/THINKING_PROCESS.md
-re/                       逆向脚本与解包产物（mock provider 也在这里）
+docs/                     reverse-engineering report, decision log, screenshots, signing guide
+scripts/                  packaging, icons, DMG, universal build, notarization
 ```
 
-## 与 Typeless 的差异（有意为之）
+## Design choices and differences from Typeless
 
-- **不复用其云接口**：`/ai/voice_flow` 需要 Typeless 账号 token，且属于第三方服务；这里改成可配置的 OpenAI 兼容端点。
-- **不采集整段输入框内容**：Typeless 会上传光标前后文与输入区全文用于润色；rustype 只取前台应用、窗口标题和选中文本，隐私优先。
-- **无本地 SQLite / 云同步 / 账号体系**：只保留 JSONL 历史。
-- **触发键默认不同**：Typeless 用 `Fn`；rustype 默认用右 `Option`，避免与仍在运行的 Typeless 抢占同一个键。两者都用 HID 级监听，`Fn` 仍可通过配置启用。
+- **No reuse of Typeless cloud APIs**: `/ai/voice_flow` requires a Typeless account token and is a third-party service; Rustype uses a configurable OpenAI-compatible endpoint instead.
+- **No full input-field capture**: Typeless uploads the text around the cursor and the whole input field for cleanup; Rustype only reads the frontmost app, window title and selected text — privacy first.
+- **No local SQLite, cloud sync or accounts**: only a JSONL history file.
+- **Different default trigger**: Typeless uses `Fn`; Rustype defaults to the right `Option` to avoid fighting a running Typeless for the same key. Both use HID-level taps; `Fn` can still be enabled in the config.
 
-## 已知限制
+## Known limitations
 
-- 仅支持 macOS（Linux/Windows 需要替换 `apps/rustype/src/macos`）。
-- 菜单栏图标是基础版：左键长按录音、右键菜单；没有 Typeless 那样的悬浮波形条。
-- 默认 `keep_mic_warm = true` 会常驻音频流（麦克风指示灯常亮）以消除启动延迟；介意隐私可设为 `false`，代价是每次开头约 0.4 秒可能被截掉。
-- Opus 编码未内置：当前上传 WAV；如接的端点只收 Ogg/Opus，可加 `opus` feature（Typeless 的 32 kbps 参数已记录在逆向报告中）。
-- 未实现「Ask anything 的外部动作」（打开链接、创建文档）与个人化统计。
+- macOS only (Linux/Windows would require replacing `apps/rustype/src/macos`).
+- The menu-bar icon is deliberately simple: click for the menu; there is no floating waveform strip like Typeless.
+- `keep_mic_warm = true` keeps the audio stream open (the microphone indicator stays on) to remove startup latency; set it to `false` if that matters, at the cost of losing roughly the first 0.4 s of each recording.
+- Opus upload is not built in: audio is sent as WAV. An `opus` feature could be added for endpoints that only accept Ogg/Opus (Typeless's 32 kbps parameters are recorded in the RE report).
+- "Ask anything" external actions (open a link, create a document) and personalized statistics are not implemented.
 
-## 合规说明
+## Signing
 
-本项目仅用于学习与互操作研究：不包含 Typeless 的任何代码或资源，不调用其私有接口，不绕过其付费限制。逆向分析针对本机已安装的软件产物，未进行网络抓包或账号数据提取。
+Local builds are ad-hoc signed. For a stable Accessibility grant across updates and for Gatekeeper-friendly distribution, use a Developer ID certificate and notarize the DMG. The complete procedure and scripts are in [docs/SIGNING.md](docs/SIGNING.md).
+
+## Compliance
+
+This project is for learning and interoperability research only: it contains no Typeless code or assets, does not call its private APIs and does not bypass its payment limits. The reverse-engineering analysis was performed on locally installed software artifacts; no network capture or account-data extraction was involved.
